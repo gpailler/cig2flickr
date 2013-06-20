@@ -1,0 +1,4 @@
+<?php
+
+define('CIG_USERNAME', 'YOURUSERNAME');
+define('CIG_PASSWORD', 'YOURPASSWORD');
