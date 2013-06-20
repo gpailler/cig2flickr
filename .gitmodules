@@ -1,0 +1,6 @@
+[submodule "lib/DPZFlickr"]
+	path = lib/DPZFlickr
+	url = https://github.com/dopiaza/DPZFlickr
+[submodule "lib/curl"]
+	path = lib/curl
+	url = https://github.com/shuber/curl.git
