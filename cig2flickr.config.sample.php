@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 // Canon Image Gateway credentials
 define('CIG_USERNAME', 'YOUR_CIG_USERNAME');
