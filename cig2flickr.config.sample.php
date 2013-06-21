@@ -1,4 +1,5 @@
 <?php
 
-define('CIG_USERNAME', 'YOURUSERNAME');
-define('CIG_PASSWORD', 'YOURPASSWORD');
+// Canon Image Gateway credentials
+define('CIG_USERNAME', 'YOUR_CIG_USERNAME');
+define('CIG_PASSWORD', 'YOUR_CIG_PASSWORD');
