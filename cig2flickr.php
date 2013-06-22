@@ -6,7 +6,9 @@ define('CONFIG_FILE', BASE_DIRECTORY . 'cig2flickr.config.php');
 
 
 require_once(BASE_DIRECTORY . 'lib/curl/curl.php');
+require_once(BASE_DIRECTORY . 'lib/DPZFlickr/src/DPZ/Flickr.php');
 
+use \DPZ\Flickr;
 
 // ====================================================================
 // Check prerequisites
@@ -50,11 +52,28 @@ if (!is_writable(TMP_DIRECTORY))
 include(CONFIG_FILE);
 
 
+// Validate Flickr Auth
+$callback = sprintf('%s://%s:%d%s',
+    (@$_SERVER['HTTPS'] == "on") ? 'https' : 'http',
+    $_SERVER['SERVER_NAME'],
+    $_SERVER['SERVER_PORT'],
+    $_SERVER['SCRIPT_NAME']
+);
+
+$flickr = new Flickr(FLICKR_API_KEY, FLICKR_API_SECRET, $callback);
+if (!$flickr->authenticate('write'))
+{
+	die("Unable to obtain flickr auth");
+}
+
+
+
 // CIG urls
 DEFINE('CIG_AUTH_URL', 'https://www.cig.canon-europe.com/pe/f/authenticate.do?UseNSession=No');
 DEFINE('CIG_HOME_URL', 'http://www.cig.canon-europe.com/photoAlbum');
 DEFINE('CIG_ITEMS_URL', 'http://opa.cig2.canon-europe.com/internal/timeline/grid');
 DEFINE('CIG_ITEM_URL', 'http://opa.cig2.canon-europe.com/item/');
+DEFINE('CIG_DELETE_URL', 'http://opa.cig2.canon-europe.com/item/delete');
 
 // Connect to Canon Image Gateway
 $curl = new Curl;
@@ -88,7 +107,15 @@ if ($response->headers['Status-Code'] != 200)
 	die('Unable to retrieve items list');
 }
 
+
+
+
 $data = json_decode($response->body);
+if (count($data->itemList) == 0)
+{
+	die('No image to transfer');
+}
+
 foreach ($data->itemList as $item)
 {
 	$id = $item->it__;
@@ -104,9 +131,43 @@ foreach ($data->itemList as $item)
 	{
 		die('Unable to retrieve download link');
 	}
+	
+	$data = file_get_contents($downloadurl);
+	
+	$tmpfile = TMP_DIRECTORY . uniqid();
+	$fp = fopen($tmpfile, 'w');
+	fwrite($fp, $data);
+	fclose($fp);
 
-	header('Content-Type: image/jpg');
-	echo file_get_contents($downloadurl);
-	//echo $downloadurl;
-	exit;
+
+	$parameters = array(
+		'title' => $title,
+		'tags' => 'cig2flickr'
+	);
+
+	$parameters['photo'] = '@' . $tmpfile;
+	
+	$response = $flickr->upload($parameters);
+	unlink($tmpfile);
+	$ok = @$response['stat'];
+
+	if ($ok == 'ok')
+	{
+		echo "Photo $title uploaded\n";
+		
+		// Remove photo on CIG
+		$response = $curl->post(CIG_DELETE_URL, array('it__' => $id, 'ct__' => $ct));
+		if ($response->headers['Status-Code'] != 200)
+		{
+			die('Unable to delete image');
+		}
+	}
+	else
+	{
+		$err = @$response['err'];
+		die("Error: " . @$err['msg']);
+	}
+	
+	flush(); 
+	ob_flush(); 
 }
