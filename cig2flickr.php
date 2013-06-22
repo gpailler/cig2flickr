@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 define('BASE_DIRECTORY', dirname(__FILE__) . '/');
 define('TMP_DIRECTORY', BASE_DIRECTORY . 'tmp/');
@@ -6,20 +6,17 @@ define('CONFIG_FILE', BASE_DIRECTORY . 'cig2flickr.config.php');
 
 
 require_once(BASE_DIRECTORY . 'lib/curl/curl.php');
-require_once(BASE_DIRECTORY . 'lib/simple_html_dom/simple_html_dom.php');
 
 
+// ====================================================================
 // Check prerequisites
+// ====================================================================
 if (!extension_loaded('curl'))
 {
 	die('cig2flickr requires CURL module');
 }
 
-if (file_exists(CONFIG_FILE))
-{
-	include(CONFIG_FILE);
-}
-else
+if (!file_exists(CONFIG_FILE))
 {
 	die('Unable to find configuration file ' . CONFIG_FILE);
 }
@@ -45,36 +42,47 @@ if (!is_writable(TMP_DIRECTORY))
 	}
 }
 
-exit;
 
-// Variables
-const cig_auth_url = 'https://www.cig.canon-europe.com/pe/f/authenticate.do?UseNSession=No';
-const cig_home_url = 'http://www.cig.canon-europe.com/photoAlbum';
-const cig_items_url = 'http://opa.cig2.canon-europe.com/internal/timeline/grid';
-const cig_item_url = 'http://opa.cig2.canon-europe.com/item/';
+
+// ====================================================================
+// Main
+// ====================================================================
+include(CONFIG_FILE);
+
+
+// CIG urls
+DEFINE('CIG_AUTH_URL', 'https://www.cig.canon-europe.com/pe/f/authenticate.do?UseNSession=No');
+DEFINE('CIG_HOME_URL', 'http://www.cig.canon-europe.com/photoAlbum');
+DEFINE('CIG_ITEMS_URL', 'http://opa.cig2.canon-europe.com/internal/timeline/grid');
+DEFINE('CIG_ITEM_URL', 'http://opa.cig2.canon-europe.com/item/');
 
 // Connect to Canon Image Gateway
 $curl = new Curl;
 $curl->cookie_file = TMP_DIRECTORY . 'cig2flickr.cookies';
 
-$response = $curl->post(cig_auth_url, array('username' => CIG_USERNAME, 'password' => CIG_PASSWORD));
+$response = $curl->post(CIG_AUTH_URL, array('username' => CIG_USERNAME, 'password' => CIG_PASSWORD));
 if ($response->headers['Status-Code'] != 200 || stripos($response->body, 'error'))
 {
 	die('Unable to properly authenticate to CIG');
 }
 
-$response = $curl->get(cig_home_url);
+$response = $curl->get(CIG_HOME_URL);
 if ($response->headers['Status-Code'] != 200)
 {
 	die('Unable to access CIG homepage');
 }
 
 // Retrieve token
-$html = str_get_html($response->body);
-$ret = $html->find('input[name=ct__]', 0); 
-$ct = $ret->value;
+if (preg_match('/name=\"ct__\" value=\"([\d\w]+?)\"/', $response->body, $matches))
+{
+	$ct = $matches[1];
+}
+else
+{
+	die('Unable to retrieve session variable ct__');
+}
 
-$response = $curl->post(cig_items_url, array('ct__' => $ct));
+$response = $curl->post(CIG_ITEMS_URL, array('ct__' => $ct));
 if ($response->headers['Status-Code'] != 200)
 {
 	die('Unable to retrieve items list');
@@ -86,13 +94,19 @@ foreach ($data->itemList as $item)
 	$id = $item->it__;
 	$title = $item->title;
 	
-	$response = $curl->get(cig_item_url . $id);
+	$response = $curl->get(CIG_ITEM_URL . $id);
 	
-	$html = str_get_html($response->body);
-	$ret = $html->find('input[id=itemDownloadStandByUrl00]', 0); 
-	$downloadurl = $ret->value;
+	if (preg_match('/id=\"itemDownloadStandByUrl00\" type=\"hidden\" value=\"(.*?)\"/', $response->body, $matches))
+	{
+		$downloadurl = $matches[1];
+	}
+	else
+	{
+		die('Unable to retrieve download link');
+	}
 
 	header('Content-Type: image/jpg');
 	echo file_get_contents($downloadurl);
+	//echo $downloadurl;
 	exit;
 }
