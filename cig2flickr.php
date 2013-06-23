@@ -60,7 +60,7 @@ include(CONFIG_FILE);
 
 $callback = sprintf('%s://%s:%d%s',
     (@$_SERVER['HTTPS'] == "on") ? 'https' : 'http',
-    defined(HOSTNAME) ? HOSTNAME : $_SERVER['SERVER_NAME'],
+    defined('HOSTNAME') ? HOSTNAME : $_SERVER['SERVER_NAME'],
     $_SERVER['SERVER_PORT'],
     $_SERVER['SCRIPT_NAME']
 );
