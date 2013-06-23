@@ -3,10 +3,12 @@
 define('BASE_DIRECTORY', dirname(__FILE__) . '/');
 define('TMP_DIRECTORY', BASE_DIRECTORY . 'tmp/');
 define('CONFIG_FILE', BASE_DIRECTORY . 'cig2flickr.config.php');
-
+define('TIMEOUT', 300);
 
 require_once(BASE_DIRECTORY . 'lib/curl/curl.php');
 require_once(BASE_DIRECTORY . 'lib/DPZFlickr/src/DPZ/Flickr.php');
+
+set_time_limit(TIMEOUT);
 
 use \DPZ\Flickr;
 
@@ -44,13 +46,12 @@ if (!is_writable(TMP_DIRECTORY))
 	}
 }
 
-
-
-// ====================================================================
-// Main
-// ====================================================================
 include(CONFIG_FILE);
 
+
+// ====================================================================
+// Flickr auth
+// ====================================================================
 
 // Validate Flickr Auth
 $callback = sprintf('%s://%s:%d%s',
@@ -61,10 +62,37 @@ $callback = sprintf('%s://%s:%d%s',
 );
 
 $flickr = new Flickr(FLICKR_API_KEY, FLICKR_API_SECRET, $callback);
-if (!$flickr->authenticate('write'))
+$flickr->setHttpTimeout(TIMEOUT);
+
+if (strlen(FLICKR_ACCESS_TOKEN) == 0 || strlen(FLICKR_ACCESS_TOKEN_SECRET) == 0)
 {
-	die("Unable to obtain flickr auth");
+	if (!$flickr->authenticate('write'))
+	{
+		die("Unable to obtain flickr auth");
+	}
+	
+	echo 'Please update your configuration file ' . CONFIG_FILE . ' with following values<br />';
+	echo 'FLICKR_ACCESS_TOKEN => ' . $flickr->getOauthData(Flickr::OAUTH_ACCESS_TOKEN) . '<br />';
+	echo 'FLICKR_ACCESS_TOKEN_SECRET => ' . $flickr->getOauthData(Flickr::OAUTH_ACCESS_TOKEN_SECRET) . '<br />';
+	echo 'Reload this script';
+	exit();
 }
+else
+{
+	$data = $_SESSION[Flickr::SESSION_OAUTH_DATA];
+	$data[Flickr::PERMISSIONS] = 'write';
+	$data[Flickr::OAUTH_ACCESS_TOKEN] = FLICKR_ACCESS_TOKEN;
+	$data[Flickr::OAUTH_ACCESS_TOKEN_SECRET] = FLICKR_ACCESS_TOKEN_SECRET;
+	$data[Flickr::USER_NSID] = uniqid();
+	
+	$_SESSION[Flickr::SESSION_OAUTH_DATA] = $data;
+	
+	$flickr->authenticate('write');
+}
+
+// ====================================================================
+// Main
+// ====================================================================
 
 
 
@@ -115,6 +143,11 @@ if (count($data->itemList) == 0)
 {
 	die('No image to transfer');
 }
+
+usort($data->itemList, function($a, $b)
+{
+	return strcmp($a->shootingDate, $b->shootingDate);
+});
 
 foreach ($data->itemList as $item)
 {
@@ -170,4 +203,5 @@ foreach ($data->itemList as $item)
 	
 	flush(); 
 	ob_flush(); 
+	break;
 }
