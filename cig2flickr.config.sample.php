@@ -13,3 +13,6 @@ define('FLICKR_API_SECRET', 'YOUR_API_SECRET');
 // then you can obtain access tokens
 define('FLICKR_ACCESS_TOKEN', '');
 define('FLICKR_ACCESS_TOKEN_SECRET', '');
+
+// You can customize your host for Flickr callback 
+// define('HOSTNAME', 'www.yourserver.com');
