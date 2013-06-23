@@ -9,5 +9,7 @@ define('CIG_PASSWORD', 'YOUR_CIG_PASSWORD');
 define('FLICKR_API_KEY', 'YOUR_API_KEY');
 define('FLICKR_API_SECRET', 'YOUR_API_SECRET');
 
+// Call the script from your browser and validate Flickr authorization,
+// then you can obtain access tokens
 define('FLICKR_ACCESS_TOKEN', '');
 define('FLICKR_ACCESS_TOKEN_SECRET', '');
